@@ -193,8 +193,8 @@ if __name__ == '__main__':
         D['distV'] = 2 * ['norm']
         #Parameters: [mstar, mob_param
 #        D['s'] = [.1, .1]
-        D['locV'] = [2, 300e-4] #centers of distributions
-        D['scaleV'] = [.1, 10e-4] #std. deviation of distributions
+        D['locV'] = [1.5, 200e-4] #centers of distributions: [1.5, 200e-4]
+        D['scaleV'] = [.3, 40e-4] #std. deviation of distributions: [0.3, 40e-4]
         D['dim'] = len(D['distV'])
         
         '''
@@ -209,7 +209,7 @@ if __name__ == '__main__':
         Iniitalize eta and kL as constants
         '''
         D['kL'] = 6
-        D['eta'] = 1.5 #need to adjust this?? should this also be a parameter..??
+        D['eta'] = 1 #need to adjust this?? should this also be a parameter..??
         
         '''
         run MH algorithm to sample posterior
