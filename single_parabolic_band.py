@@ -10,7 +10,7 @@ Single Parabolic Band Model implemented for UQ
 
 import numpy as np
 from fdint import fdk
-from math import pi, exp
+from math import pi, exp, inf
 import helper as hpr
 import scipy.stats as ss
 import os
@@ -73,11 +73,17 @@ T = 300
 def feval_zT(param, T, D):
     zT = zT_from_eta(*param, D['eta'], D['kL'], T = T)
     return zT
+
+def feval_zT_eta(param, T, D):
+    zT = zT_from_eta(*param, D['kL'], T = T)
+    return zT
     
 def likelihood(param, D):
-    dA = D['At'] - feval_zT(param, D['Tt'], D)
+    dA = D['At'] - feval_zT_eta(param, D['Tt'], D)
     #Obtain hyperparameters for the zT data: this might be for scaling?
-    prob = ss.norm.logpdf(dA, loc=0, scale = param[-1]).sum() 
+    prob = ss.norm.logpdf(dA, loc=0, scale = param[-1]).sum()
+    if np.isnan(prob):
+        return -np.inf
     return prob
 
 
@@ -190,26 +196,37 @@ if __name__ == '__main__':
         '''
         Define prior distributions. Do I need an 'epsilon' factor?
         '''
-        D['distV'] = 2 * ['norm']
-        #Parameters: [mstar, mob_param
-#        D['s'] = [.1, .1]
-        D['locV'] = [1.5, 200e-4] #centers of distributions: [1.5, 200e-4]
-        D['scaleV'] = [.3, 40e-4] #std. deviation of distributions: [0.3, 40e-4]
+        D['distV'] = 3 * ['norm']
+        #Parameters: [mstar, mob_param, eta]
+#        D['s'] = [.5, .5, .5]
+#        D['locV'] = [0, 0, 0] #centers of distributions: [1.5, 200e-4, 1]
+#        D['scaleV'] = [1.5, 200e-4, 1] #std. deviation of distributions: [0.3, 40e-4, 0.1]
         D['dim'] = len(D['distV'])
         
         '''
-        Initalize property traces and trace plots
+        Define priors. Initalize property traces and trace plots
         '''
-        D['pname'] = ['mstar', 'mob_param']
-        D['pname_plt'] = ['m^*', r'\mu_0']
+        D['pname'] = ['mstar', 'mob_param', 'eta']
+        D['pname_plt'] = ['m^*', r'\mu_0', r'\eta']
         
-        D['n_param'] = 2
+        D['n_param'] = 3
+        
+#        if os.path.exists(D['outname'] + '_prior.csv'):
+#            print('prior suggestions loaded')
+#            nxtprior = np.loadtxt(D['outname'] + '_prior.csv')
+##            D['s'] = list(nxtprior[0, :D['npar_model']])
+#            D['locV'] = list(nxtprior[0, :D['n_param']])
+#            D['scaleV'] = list(nxtprior[1, :D['n_param']])
+#            print('here')
+#        else:
+        D['locV'] = [1.5, 200e-4, 1]
+        D['scaleV'] = [0.5, 50e-4, 0.5]
         
         '''
         Iniitalize eta and kL as constants
         '''
         D['kL'] = 6
-        D['eta'] = 1 #need to adjust this?? should this also be a parameter..??
+#        D['eta'] = 1 #need to adjust this?? should this also be a parameter..??
         
         '''
         run MH algorithm to sample posterior
@@ -277,14 +294,22 @@ if __name__ == '__main__':
                  param_true=param_true, pltname=D['outname'])
 
         cc.coef_summary(flattrace, D['pname'], D['outname'])
-    
+        
+        '''
+        Save current priors
+        '''
+        nxtprior = np.zeros((2, D['n_param']))
+        nxtprior[0, :] = np.mean(flattrace, 0) - 5 * np.std(flattrace, 0)
+        nxtprior[1, :] = 10*np.std(flattrace, 0)
+        np.savetxt(D['outname'] + '_prior.csv', nxtprior)
+        
         cp.plot_cov(flattrace, D['pname_plt'], param_true=param_true,
                     bounds=bounds, figsize=[5.5, 5.5], pltname=D['outname'])
     
 #    
 #    
         cp.plot_prediction(flattrace, D['name_list'],
-                           D['Tt'], D['At'], D['It'], feval_zT, D,
+                           D['Tt'], D['At'], D['It'], feval_zT_eta, D,
                            colorL=['k'], xlabel = 'T (K)', ylabel = 'zT')
         
 #    

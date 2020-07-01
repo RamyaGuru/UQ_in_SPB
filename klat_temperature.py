@@ -19,6 +19,7 @@ import pickle
 import sys
 import UnaryBayes.core_compute as cc
 import UnaryBayes.core_plot as cp
+import pandas as pd
 
  
 
@@ -104,7 +105,9 @@ def likelihood(param, D):
     dA = D['At'] - feval_klat_PD_U(param, D['Tt'], D)
     #Obtain hyperparameters for the zT data: this might be for scaling?
     #Try alternative dsitirubtions fro the log likelihood
-    prob = ss.norm.logpdf(dA, loc=0, scale = param[-1]).sum() 
+    prob = ss.norm.logpdf(dA, loc=0, scale = param[-1]).sum()
+    if np.isnan(prob):
+        return -np.inf    
     return prob    
 
 
@@ -186,11 +189,10 @@ if __name__ == '__main__':
         '''
         Define prior distributions. Do I need an 'epsilon' factor?
         '''
-        D['distV'] = 4 * ['lognorm']
+        D['distV'] = 4 * ['norm']
         #Parameters: [mstar, mob_param]
-        D['s'] = [0.1, 0.1, 0.1, .1] 
-        D['locV'] = [1, 1, 2, 300] #centers of distributions
-        D['scaleV'] = [1, 1, 1, 50] #std. deviation of distributions
+        D['locV'] = [1, 1, 2, 350] #centers of distributions
+        D['scaleV'] = [1, 1, .4, 100] #std. deviation of distributions
         D['dim'] = len(D['distV'])
         
         D['pname'] = ['A', 'B', 'gruneisen', 'epsilon' ]
