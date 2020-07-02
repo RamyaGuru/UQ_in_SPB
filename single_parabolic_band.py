@@ -46,8 +46,15 @@ def lorentz(eta):
     return (hpr.kB**2 / hpr.e**2) * (3 * fdk(0, eta) * fdk(2, eta) - 4 * fdk(1, eta)**2)\
 /(fdk(0,eta)**2)
 
-def conductivity(eta, T, mob_param, mstar, s=1):
-    sigmae0 = sigmae0_from_muW(mob_param * mstar**(3/2), T)
+#Add deformation potential... work on this later
+def mob_param(mstar, coeff):
+    '''
+    In Bardeen-Shockley model, def_pot_factor is mstar_i(DefPot)**2
+    '''
+    return coeff * (mstar)**(-5/2) * T**(-3/2)
+
+def conductivity(eta, T, coeff, mstar, s=1):
+    sigmae0 = sigmae0_from_muW(mob_param(mstar, coeff) * mstar**(3/2), T)
     if s == 0:  # s=0 requires analytic simplification
         return sigmae0/ (1. + np.exp(-eta))
     else:
@@ -55,10 +62,10 @@ def conductivity(eta, T, mob_param, mstar, s=1):
 
 
 #Maybe for now provide list of lattice thermal conducitvities
-def zT_from_eta(mstar, mob_param, eta, kL, T = [300]):
+def zT_from_eta(mstar, coeff, eta, kL, T = [300]):
 #    print(mstar, mob_param) #eta should also be a fitting parameter..??
     S = seebeck(eta)
-    cond = conductivity(eta, T, mob_param, mstar, s = 1)
+    cond = conductivity(eta, T, coeff, mstar, s = 1)
     L = lorentz(eta)
     kappa_e = L * cond * T
     return S**2 * cond * T / (kappa_e + kL)
@@ -189,7 +196,7 @@ if __name__ == '__main__':
         
         D['likelihood'] = likelihood
         
-        D['name_list'] = ['Co in Fe2VAl']
+        D['name_list'] = ['Ti in FeNbSb']
         
         D['sampler'] = 'emcee'
         
@@ -206,8 +213,8 @@ if __name__ == '__main__':
         '''
         Define priors. Initalize property traces and trace plots
         '''
-        D['pname'] = ['mstar', 'mob_param', 'eta']
-        D['pname_plt'] = ['m^*', r'\mu_0', r'\eta']
+        D['pname'] = ['mstar', 'mob_param_coeff', 'eta']
+        D['pname_plt'] = ['m^*', r'$\mu_0$ Coeff.', r'\eta']
         
         D['n_param'] = 3
         
@@ -219,8 +226,10 @@ if __name__ == '__main__':
 #            D['scaleV'] = list(nxtprior[1, :D['n_param']])
 #            print('here')
 #        else:
-        D['locV'] = [1.5, 200e-4, 1]
-        D['scaleV'] = [0.5, 50e-4, 0.5]
+#        D['locV'] = [1.5, 200e-4, 1]
+#        D['scaleV'] = [0.5, 50e-4, 0.5]
+        D['locV'] = [1.5, 100, 1]
+        D['scaleV'] = [0.5, 10, 0.5]
         
         '''
         Iniitalize eta and kL as constants

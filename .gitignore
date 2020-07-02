@@ -1,2 +1,5 @@
 #Ignore all text files
 *.txt
+
+#Ignore the UnaryBayes directory
+UnaryBayes/

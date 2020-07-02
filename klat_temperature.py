@@ -61,11 +61,11 @@ def gamma(stoich, og, subst, c):
     return gamma 
 
 def pd_tau(A, gamma, freq, avgV, vs):
-    return 4 * pi * vs**3/ (avgV * freq**4 * gamma)
+    return A * 4 * pi * vs**3/ (avgV * freq**4 * gamma)
 
-def umklapp_tau(B, grun, freq, avgM, avgV, vs, T):
-    return (6 * pi**2)**(1/3)/2 * ((avgM / hpr.Na) * 1e-3 * vs**3)\
- / (hpr.kB * avgV**(1/3) * float(grun)**2 * freq**2 * T)
+def umklapp_tau(B, grun2, freq, avgM, avgV, vs, T):
+    return B * (6 * pi**2)**(1/3)/2 * ((avgM / hpr.Na) * 1e-3 * vs**3)\
+ / (hpr.kB * avgV**(1/3) * float(grun2) * freq**2 * T) #grun2 is the squared gruneisen parameter
 
 def spectral_C(vs, freq, T):
     x = hpr.hbar * freq / (hpr.kB * T)
@@ -191,8 +191,8 @@ if __name__ == '__main__':
         '''
         D['distV'] = 4 * ['norm']
         #Parameters: [mstar, mob_param]
-        D['locV'] = [1, 1, 2, 350] #centers of distributions
-        D['scaleV'] = [1, 1, .4, 100] #std. deviation of distributions
+        D['locV'] = [1, 1, 1, 1] #centers of distributions
+        D['scaleV'] = [.4, .4, .4, 0.4] #std. deviation of distributions
         D['dim'] = len(D['distV'])
         
         D['pname'] = ['A', 'B', 'gruneisen', 'epsilon' ]
@@ -209,7 +209,7 @@ if __name__ == '__main__':
         D['avgV'] = 11.6e-30 #in cubic meters
         D['N'] = 4
         D['stoich'] = [1,1,1]
-        D['nfreq'] = 100
+        D['nfreq'] = 1000
         D['og'] = {'mass': [55.845, 92.906, 121.76],'rad': [.75, .86, 0.9]}
         D['subst'] = {'mass': [47.867, 92.906, 121.76] ,'rad': [.75, .67, 0.9]}
         D['c'] = .2
@@ -218,6 +218,7 @@ if __name__ == '__main__':
 #        D['avgV'] = (53.167E-30) / 3
 #        D['avgM'] = 90.17
 #        D['N'] = 3
+        sampler_dict = {'nlinks' : 300, 'nwalkers' :50, 'ntemps' : 1, 'ntune' : 100}
         
         '''
         run MH algorithm to sample posterior
