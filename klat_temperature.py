@@ -9,7 +9,7 @@ Toberer Thermal Model: kappaL = A*(1 / T) + B
 """
 
 import numpy as np
-from math import pi
+from math import pi, exp
 from scipy.optimize import curve_fit
 import helper as hpr
 import scipy.stats as ss
@@ -102,16 +102,17 @@ def feval_klat_PD_U(param, T, D):
 
 #Can this just be added to the core_compute module?
 def likelihood(param, D):
-    dA = D['At'] - feval_klat_PD_U(param, D['Tt'], D)
+    model_val = feval_klat_PD_U(param, D['Tt'], D)
+    dA = D['At'] - model_val
     #Obtain hyperparameters for the zT data: this might be for scaling?
     #Try alternative dsitirubtions fro the log likelihood
-    prob = ss.norm.logpdf(dA, loc=0, scale = param[-1]).sum()
+    prob = ss.norm.logpdf(dA, loc=0, scale = D['Et']).sum()
     if np.isnan(prob):
         return -np.inf    
     return prob    
 
 
-def read_data(data_dir, npts, dopant_conc : str):
+def read_data(data_dir,npts, dopant_conc : str):
     data = {}
     os.chdir(str(data_dir))
     try:
@@ -127,7 +128,7 @@ def read_data(data_dir, npts, dopant_conc : str):
     Tt = data['Th Cond'][:,0]
     At = data['Th Cond'][:,1]
     It = np.zeros(At.shape)
-    Et = np.zeros(At.shape) #experimental error bars?
+    Et = np.zeros(At.shape) #experimental error bars? initialize these values and use in likelihood
     return Tt, At, It, Et
 
 def read_data_pd(data_dir, dopant_conc : str):
@@ -141,6 +142,7 @@ def read_data_pd(data_dir, dopant_conc : str):
     subdirs = [x[0] for x in os.walk(data_dir)]
     Tt = []
     At = []
+    Et = []
     try:
         for s in subdirs:
             os.chdir(s)
@@ -150,14 +152,15 @@ def read_data_pd(data_dir, dopant_conc : str):
                     data = df.to_dict('list')
                     Tt += list(df['T(K)'])
                     At += data['kL (W/m/K)']
+                    Et += data['20%eps kL (W/m/K)']
                 else:
                     continue
     except:
         raise hpr.PropertyError('Data folders not formatted properly')
     Tt = np.array(Tt)
     At = np.array(At)
-    It = np.zeros(At.shape)
-    Et = np.zeros(At.shape)           
+    Et = np.array(Et)
+    It = np.zeros(At.shape)           
     return Tt, At, Et, It
 
 
@@ -186,13 +189,15 @@ if __name__ == '__main__':
         
         D['sampler'] = 'emcee'
         
+        
         '''
         Define prior distributions. Do I need an 'epsilon' factor?
         '''
-        D['distV'] = 4 * ['norm']
+        D['distV'] = 4 * ['uniform']
         #Parameters: [mstar, mob_param]
-        D['locV'] = [1, 1, 1, 1] #centers of distributions
-        D['scaleV'] = [.4, .4, .4, 0.4] #std. deviation of distributions
+        D['scaleV'] = [3, 3, 3, 500]
+#        D['s'] = [.4, .4, .4, .4] #std. deviation of distributions
+        D['locV'] = [0, 0, 0, 0] #centers of distributions
         D['dim'] = len(D['distV'])
         
         D['pname'] = ['A', 'B', 'gruneisen', 'epsilon' ]
@@ -204,21 +209,23 @@ if __name__ == '__main__':
         Set material constants
         '''
 #        Fe2VAl
-        D['vs'] = v_sound(7750, 4530)
-        D['avgM'] = 47.403
-        D['avgV'] = 11.6e-30 #in cubic meters
-        D['N'] = 4
+#        D['vs'] = v_sound(7750, 4530)
+#        D['avgM'] = 47.403
+#        D['avgV'] = 11.6e-30 #in cubic meters
+#        D['N'] = 4
+        '''
+        FeNbSb
+        '''
         D['stoich'] = [1,1,1]
-        D['nfreq'] = 1000
+        D['nfreq'] = 100
         D['og'] = {'mass': [55.845, 92.906, 121.76],'rad': [.75, .86, 0.9]}
-        D['subst'] = {'mass': [47.867, 92.906, 121.76] ,'rad': [.75, .67, 0.9]}
+        D['subst'] = {'mass': [55.845, 47.867, 121.76] ,'rad': [.75, .67, 0.9]}
         D['c'] = .2
-        #FeNbSb
-#        D['vs'] = 3052
-#        D['avgV'] = (53.167E-30) / 3
-#        D['avgM'] = 90.17
-#        D['N'] = 3
-        sampler_dict = {'nlinks' : 300, 'nwalkers' :50, 'ntemps' : 1, 'ntune' : 100}
+        D['vs'] = 3052
+        D['avgV'] = (53.167E-30) / 3
+        D['avgM'] = 90.17
+        D['N'] = 3
+        sampler_dict = {'nlinks' : 200, 'nwalkers' :100, 'ntemps' : 1, 'ntune' : 200}
         
         '''
         run MH algorithm to sample posterior

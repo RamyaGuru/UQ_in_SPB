@@ -88,7 +88,7 @@ def feval_zT_eta(param, T, D):
 def likelihood(param, D):
     dA = D['At'] - feval_zT_eta(param, D['Tt'], D)
     #Obtain hyperparameters for the zT data: this might be for scaling?
-    prob = ss.norm.logpdf(dA, loc=0, scale = param[-1]).sum()
+    prob = ss.norm.logpdf(dA, loc=0, scale = param[-1]).sum() #need to actually add a parameter for the likelihood scale
     if np.isnan(prob):
         return -np.inf
     return prob
@@ -203,7 +203,7 @@ if __name__ == '__main__':
         '''
         Define prior distributions. Do I need an 'epsilon' factor?
         '''
-        D['distV'] = 3 * ['norm']
+        D['distV'] = 3 * ['lognorm']
         #Parameters: [mstar, mob_param, eta]
 #        D['s'] = [.5, .5, .5]
 #        D['locV'] = [0, 0, 0] #centers of distributions: [1.5, 200e-4, 1]
@@ -214,7 +214,7 @@ if __name__ == '__main__':
         Define priors. Initalize property traces and trace plots
         '''
         D['pname'] = ['mstar', 'mob_param_coeff', 'eta']
-        D['pname_plt'] = ['m^*', r'$\mu_0$ Coeff.', r'\eta']
+        D['pname_plt'] = ['m^*', 'A', r'\eta']
         
         D['n_param'] = 3
         
