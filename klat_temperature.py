@@ -66,6 +66,9 @@ def pd_tau(A, gamma, freq, avgV, vs):
 def umklapp_tau(B, grun2, freq, avgM, avgV, vs, T):
     return B * (6 * pi**2)**(1/3)/2 * ((avgM / hpr.Na) * 1e-3 * vs**3)\
  / (hpr.kB * avgV**(1/3) * float(grun2) * freq**2 * T) #grun2 is the squared gruneisen parameter
+ 
+def boundary_tau(C, vs, d):
+    return C * (d / vs)
 
 def spectral_C(vs, freq, T):
     x = hpr.hbar * freq / (hpr.kB * T)
@@ -91,6 +94,26 @@ def kL_umklapp_PD_vs_T(param, avgV, N, vs, stoich, og, subst, nfreq, c, T):
         kL = kL + (1/3) * spectral_C(vs, freq, T) * vs**2 * tau * dfreq
     return kL
 
+def kL_umklapp_PD_b_vs_T(param, avgV, N, vs, d, stoich, og, subst, nfreq, c, T):
+    '''
+    param = [coeff1, coeff2, gruneisen, epsilon]
+    '''
+    gammaM = gamma(stoich, og['mass'], subst['mass'], c)
+    gammaV = gamma(stoich, og['rad'], subst['rad'], c)
+    gammatot = gammaM + param[3] * gammaV
+    
+    avgM = sum((1-c) * np.array(og['mass']) + c * np.array(subst['mass'])) / sum(stoich)
+    debf = debyeT(vs, avgV) * (hpr.kB / hpr.hbar)
+    dfreq = debf / nfreq
+    kL = 0
+    for freq in np.arange(dfreq, debf, dfreq):
+        tauPD = pd_tau(param[0], gammatot, freq, avgV, vs)
+        tauU = umklapp_tau(param[1], param[2], freq, avgM, avgV, vs, T)
+        tauB = boundary_tau(param[4], vs, d)
+        tau = 1/(tauU**(-1) + tauPD**(-1) + tauB**(-1))
+        kL = kL + (1/3) * spectral_C(vs, freq, T) * vs**2 * tau * dfreq
+    return kL
+
 def feval_klat(param, T, D):
     kL = kL_T(param, D['avgM'], D['avgV'], D['N'], D['vs'],T)
     return kL
@@ -99,6 +122,11 @@ def feval_klat_PD_U(param, T, D):
     kL = kL_umklapp_PD_vs_T(param, D['avgV'], D['N'], D['vs'], D['stoich'],\
                             D['og'], D['subst'], D['nfreq'], D['c'], T)
     return kL
+
+def feval_klat_PD_U_b(param, T, D):
+    kL = kL_umklapp_PD_b_vs_T(param, D['avgV'], D['N'], D['vs'], D['d'], D['stoich'],\
+                            D['og'], D['subst'], D['nfreq'], D['c'], T)
+    return kL    
 
 #Can this just be added to the core_compute module?
 def likelihood(param, D):
@@ -194,13 +222,11 @@ if __name__ == '__main__':
         Define prior distributions. Do I need an 'epsilon' factor?
         '''
         D['distV'] = 4 * ['uniform']
-        #Parameters: [mstar, mob_param]
-        D['scaleV'] = [3, 3, 3, 500]
-#        D['s'] = [.4, .4, .4, .4] #std. deviation of distributions
+        D['scaleV'] = [2, 2, 2, 600]
         D['locV'] = [0, 0, 0, 0] #centers of distributions
         D['dim'] = len(D['distV'])
         
-        D['pname'] = ['A', 'B', 'gruneisen', 'epsilon' ]
+        D['pname'] = ['A', 'B', 'gruneisen', 'epsilon']
         D['pname_plt'] = ['A', 'B', r'\gamma', r'\epsilon'] 
         
         D['n_param'] = 4
@@ -225,6 +251,7 @@ if __name__ == '__main__':
         D['avgV'] = (53.167E-30) / 3
         D['avgM'] = 90.17
         D['N'] = 3
+        D['d'] = 350E-9
         sampler_dict = {'nlinks' : 200, 'nwalkers' :100, 'ntemps' : 1, 'ntune' : 200}
         
         '''

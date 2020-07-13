@@ -88,7 +88,7 @@ def feval_zT_eta(param, T, D):
 def likelihood(param, D):
     dA = D['At'] - feval_zT_eta(param, D['Tt'], D)
     #Obtain hyperparameters for the zT data: this might be for scaling?
-    prob = ss.norm.logpdf(dA, loc=0, scale = param[-1]).sum() #need to actually add a parameter for the likelihood scale
+    prob = ss.norm.logpdf(dA, loc=0, scale = D['Et']).sum() #need to actually add a parameter for the likelihood scale
     if np.isnan(prob):
         return -np.inf
     return prob
@@ -171,7 +171,7 @@ def read_data_pd(data_dir, dopant_conc : str):
     Tt = np.array(Tt)
     At = np.array(At)
     It = np.zeros(At.shape)
-    Et = np.zeros(At.shape)           
+    Et = np.array(At * 0.15)          
     return Tt, At, Et, It
     
     
@@ -203,7 +203,7 @@ if __name__ == '__main__':
         '''
         Define prior distributions. Do I need an 'epsilon' factor?
         '''
-        D['distV'] = 3 * ['lognorm']
+        D['distV'] = 3 * ['norm']
         #Parameters: [mstar, mob_param, eta]
 #        D['s'] = [.5, .5, .5]
 #        D['locV'] = [0, 0, 0] #centers of distributions: [1.5, 200e-4, 1]
