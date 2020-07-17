@@ -53,6 +53,10 @@ def mob_param(mstar, coeff):
     '''
     return coeff * (mstar)**(-5/2) * T**(-3/2)
 
+
+'''
+Conversion from lambda notation: 
+'''
 def conductivity(eta, T, coeff, mstar, s=1):
     sigmae0 = sigmae0_from_muW(mob_param(mstar, coeff) * mstar**(3/2), T)
     if s == 0:  # s=0 requires analytic simplification
@@ -183,7 +187,7 @@ if __name__ == '__main__':
         D['fname'] = sys.argv[0]
 
         # outname is the name for plots, etc
-        D['outname'] = 'Fe2VAl_SPB'
+        D['outname'] = 'Ti_FeNbSb_SPB'
 
         # set up a log file
         D['wrt_file'] = D['outname'] + '.txt'
@@ -203,7 +207,7 @@ if __name__ == '__main__':
         '''
         Define prior distributions. Do I need an 'epsilon' factor?
         '''
-        D['distV'] = 3 * ['norm']
+        D['distV'] = 3 * ['uniform']
         #Parameters: [mstar, mob_param, eta]
 #        D['s'] = [.5, .5, .5]
 #        D['locV'] = [0, 0, 0] #centers of distributions: [1.5, 200e-4, 1]
@@ -228,8 +232,10 @@ if __name__ == '__main__':
 #        else:
 #        D['locV'] = [1.5, 200e-4, 1]
 #        D['scaleV'] = [0.5, 50e-4, 0.5]
-        D['locV'] = [1.5, 100, 1]
-        D['scaleV'] = [0.5, 10, 0.5]
+#        D['locV'] = [1.5, 100, 1]
+#        D['scaleV'] = [0.5, 10, 0.5]
+        D['locV'] = [5, 500, 0]
+        D['scaleV'] = [5, 500, 1]
         
         '''
         Iniitalize eta and kL as constants
