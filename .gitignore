@@ -3,3 +3,8 @@
 
 #Ignore the UnaryBayes directory
 UnaryBayes/
+
+#Ignore unfinished scripts
+single_kane_band.py
+two_band_model.py
+mobility_parameters.py

@@ -6,6 +6,10 @@ Created on Tue Jun  9 09:53:18 2020
 Single Parabolic Band Model implemented for UQ
 
 @author: ramyagurunathan
+
+Get doping level directly from the Seebeck? Fit to it?
+
+need to determine an independent variable?
 """
 
 import numpy as np
@@ -42,6 +46,7 @@ def carr_conc_from_eta(eta, mstar, T=300):
 def seebeck(eta):
     return (hpr.kB / hpr.e) * (2 * fdk(1, eta) / fdk(0, eta) - eta)
 
+
 def lorentz(eta):
     return (hpr.kB**2 / hpr.e**2) * (3 * fdk(0, eta) * fdk(2, eta) - 4 * fdk(1, eta)**2)\
 /(fdk(0,eta)**2)
@@ -49,14 +54,19 @@ def lorentz(eta):
 #Add deformation potential... work on this later
 def mob_param(mstar, coeff):
     '''
-    In Bardeen-Shockley model, def_pot_factor is mstar_i(DefPot)**2
+    Deformation Potential Scattering term from Bardeen Shockley Model
     '''
     return coeff * (mstar)**(-5/2) * T**(-3/2)
 
 
 '''
-Conversion from lambda notation: 
+Scattering mechanisms:
+    s = 1: acoustic phonon scattering
+    s = 2: optical phonon scattering (check reference)
+    s = 3: ionized imurity scattering
 '''
+
+
 def conductivity(eta, T, coeff, mstar, s=1):
     sigmae0 = sigmae0_from_muW(mob_param(mstar, coeff) * mstar**(3/2), T)
     if s == 0:  # s=0 requires analytic simplification
@@ -68,7 +78,7 @@ def conductivity(eta, T, coeff, mstar, s=1):
 #Maybe for now provide list of lattice thermal conducitvities
 def zT_from_eta(mstar, coeff, eta, kL, T = [300]):
 #    print(mstar, mob_param) #eta should also be a fitting parameter..??
-    S = seebeck(eta)
+    S = seebeck(eta) # should just fit to the Seebeck coefficient
     cond = conductivity(eta, T, coeff, mstar, s = 1)
     L = lorentz(eta)
     kappa_e = L * cond * T

@@ -13,7 +13,7 @@ Constants
 '''
 
 kB = 1.38e-23 # V / K
-h = 6.02e-34 # J * s
+h = 6.626e-34 # J * s
 hbar = 1.054e-34 # J * s
 
 e = 1.602e-19 # C

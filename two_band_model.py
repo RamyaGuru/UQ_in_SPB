@@ -40,15 +40,29 @@ def twoband_conductivity(eta_n, eta_p, sigmae01, sigmae02, s=1):
     Note: sigmae01 should be the n-type value
     Conductivity in S/m
     '''
-    return conductivity(eta_n, sigmae01, s=1) + conductivity(eta_p, sigmae02, s=1)
+    return spb.conductivity(eta_n, sigmae01, s=1) + spb.conductivity(eta_p, sigmae02, s=1)
 
-def twoband_seebeck(eta_1, eta_2, sigmae01, sigmae02):
+def twoband_seebeck(eta_1, eta_2, sigmae01, sigmae02, geom : dict):
     '''
     Note: sigmae01 should be the n-type value
     Seebeck in V/K
     '''
-    return (-1 * spb.seebeck(eta_1) * spb.conductivity(eta_1, sigmae01, s=1) + spb.seebeck(eta_2) *\
+    if geom['1'] == 'electron': sgn1 = -1
+    else : sgn1 = 1
+    if geom['2'] == 'electron': sgn2 = -1
+    else : sgn2 = 1
+    return (sgn1 * spb.seebeck(eta_1) * spb.conductivity(eta_1, sigmae01, s=1) + sgn2 * spb.seebeck(eta_2) *\
  spb.conductivity(eta_2, sigmae02, s=1)) / (twoband_conductivity(eta_1, eta_2, sigmae01, sigmae02, s=1))
+
+'''
+Without the interband scattering
+'''    
+def twoband_lorenz(eta_1, eta_2, sigmae01, sigmae02, geom : dict):
+    return spb.lorentz(eta_1) * spb.conductivity(eta_1, T,)
+
+'''
+With interband scattering
+'''
+def towband_lorenz_IB(eta_1, eta_2, sigmae01, sigmae02, geom : dict):
     
-def twoband_lorentz():
-    return 
+    return
