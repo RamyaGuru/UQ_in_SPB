@@ -64,7 +64,7 @@ D['avgV'] = (53.167E-30) / 3
 D['avgM'] = 90.17
 D['N'] = 3
 D['d'] = 350E-9
-D['disp_fxn'] = kt.debye_model_freq 
+D['disp_fxn'] = kt.bvk_model_freq 
 sampler_dict = {'nlinks' : 200, 'nwalkers' :100, 'ntemps' : 1, 'ntune' : 200}
 
 '''
