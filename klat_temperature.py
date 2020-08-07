@@ -5,11 +5,11 @@ Created on Sun Jun 21 22:09:50 2020
 
 @author: ramyagurunathan
 
-Toberer Thermal Model: kappaL = A*(1 / T) + B
+High Temperature (above Debye T Thermal Model)
 """
 
 import numpy as np
-from math import pi, exp
+from math import pi, exp, sin
 from scipy.optimize import curve_fit
 import helper as hpr
 import scipy.stats as ss
@@ -46,6 +46,10 @@ def kL_T(param, avgM, avgV, N, vs, T):
     B = param[2] * (3  * hpr.kB * vs / (2 * avgV**(2/3)))  * (pi / 6)**(1/3) * (1 - N**(-2/3))
     return A * (1 / T) + B
 
+'''
+Relaxation time expressions
+'''
+
 def gamma(stoich, og, subst, c):
     '''
     Calculate gamma for mass or strain
@@ -67,8 +71,30 @@ def umklapp_tau(B, grun2, freq, avgM, avgV, vs, T):
     return B * (6 * pi**2)**(1/3)/2 * ((avgM / hpr.Na) * 1e-3 * vs**3)\
  / (hpr.kB * avgV**(1/3) * float(grun2) * freq**2 * T) #grun2 is the squared gruneisen parameter
  
+def normal_TA_tau(B1, freq, grun2, avgM, avgV, vs, T):
+    debT = debyeT(vs, avgV)
+    return B1 * grun2 * hpr.hbar * (hpr.Na**(5/3) / (avgV**(2/3) * avgM * debT**5))
+ 
 def boundary_tau(C, vs, d):
     return C * (d / vs)
+
+'''
+Phonon Dispersion Approximations
+'''   
+
+def debye_model_freq(atmV, vs, k):
+    return vs * k
+
+def bvk_model_freq(atmV, vs, k):
+    kmax = (6 * pi**2 / atmV)**(1/3)
+    return vs*(2/pi)*(kmax/k)*sin((pi/2)*(k/kmax)) * k
+
+#Add polynoimal dispersion from Schrade 2018
+
+
+'''
+Heat Capacity and Thermal Conductivity
+'''
 
 def spectral_C(vs, freq, T):
     x = hpr.hbar * freq / (hpr.kB * T)
@@ -114,6 +140,69 @@ def kL_umklapp_PD_b_vs_T(param, avgV, N, vs, d, stoich, og, subst, nfreq, c, T):
         kL = kL + (1/3) * spectral_C(vs, freq, T) * vs**2 * tau * dfreq
     return kL
 
+'''
+Scattering Terms
+'''
+def pd_tau_k(A, gamma, k, avgV, vs, disp_fxn):
+    freq = disp_fxn(avgV, vs, k)
+    return A * 4 * pi * vs/ (avgV * freq**2 * k**2 * gamma)
+
+def umklapp_tau_k(B, grun2, k, avgM, avgV, vs, disp_fxn, T):
+    freq = disp_fxn(avgV, vs, k)
+    return B * (6 * pi**2)**(1/3)/2 * ((avgM / hpr.Na) * 1e-3 * vs)\
+ / (hpr.kB * avgV**(1/3) * float(grun2) * k**2 * T) #grun2 is the squared gruneisen parameter
+'''
+Thermal Conductivity integral over k
+'''
+def spectral_C_k(avgV, vs, k, disp_fxn, T): 
+    freq = disp_fxn(avgV, vs, k)
+    x = hpr.hbar * freq / (hpr.kB * T)
+    return (1 / (2 * pi**2)) * hpr.kB * k**2 * (x**2 * np.exp(x))/ (np.exp(x) - 1)**2
+
+def kL_umklapp_PD_vs_T_k(param, avgV, N, vs, stoich, og, subst, nk, c, disp_fxn, T):
+    '''
+    param = [coeff1, coeff2, gruneisen, epsilon]
+    '''
+    gammaM = gamma(stoich, og['mass'], subst['mass'], c)
+    gammaV = gamma(stoich, og['rad'], subst['rad'], c)
+    gammatot = gammaM + param[3] * gammaV
+    
+    avgM = sum((1-c) * np.array(og['mass']) + c * np.array(subst['mass'])) / sum(stoich)
+    kL = 0
+    kmax = (6 * pi**2 / avgV)**(1/3)
+    dk = kmax / nk
+    for k in np.arange(dk, kmax, dk):
+        tauPD = pd_tau_k(param[0], gammatot, k, avgV, vs, disp_fxn)
+        tauU = umklapp_tau_k(param[1], param[2], k, avgM, avgV, vs, disp_fxn, T)
+        tau = 1/(tauU**(-1) + tauPD**(-1))
+        kL = kL + spectral_C_k(avgV, vs, k, disp_fxn, T) * vs**2 * tau * k**2 * dk
+    return kL
+
+def kL_umklapp_PD_b_vs_T_k(param, avgV, N, vs, d, stoich, og, subst, nfreq, c, T):
+    '''
+    param = [coeff1, coeff2, gruneisen, epsilon]
+    '''
+    gammaM = gamma(stoich, og['mass'], subst['mass'], c)
+    gammaV = gamma(stoich, og['rad'], subst['rad'], c)
+    gammatot = gammaM + param[3] * gammaV
+    
+    avgM = sum((1-c) * np.array(og['mass']) + c * np.array(subst['mass'])) / sum(stoich)
+    debf = debyeT(vs, avgV) * (hpr.kB / hpr.hbar)
+    dfreq = debf / nfreq
+    kL = 0
+    for freq in np.arange(dfreq, debf, dfreq):
+        tauPD = pd_tau(param[0], gammatot, freq, avgV, vs)
+        tauU = umklapp_tau(param[1], param[2], freq, avgM, avgV, vs, T)
+        tauB = boundary_tau(param[4], vs, d)
+        tau = 1/(tauU**(-1) + tauPD**(-1) + tauB**(-1))
+        kL = kL + (1/3) * spectral_C(vs, freq, T) * vs**2 * tau * dfreq
+    return kL
+
+
+'''
+Wrapper functions
+'''
+
 def feval_klat(param, T, D):
     kL = kL_T(param, D['avgM'], D['avgV'], D['N'], D['vs'],T)
     return kL
@@ -126,7 +215,9 @@ def feval_klat_PD_U(param, T, D):
 def feval_klat_PD_U_b(param, T, D):
     kL = kL_umklapp_PD_b_vs_T(param, D['avgV'], D['N'], D['vs'], D['d'], D['stoich'],\
                             D['og'], D['subst'], D['nfreq'], D['c'], T)
-    return kL    
+    return kL 
+
+
 
 #Can this just be added to the core_compute module?
 def likelihood(param, D):
