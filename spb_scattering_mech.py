@@ -60,7 +60,7 @@ def wtd_mobility(coeff, mstar, T, l = 0):
         n = l - (3/2)
     else: 
         n = l - (1/2)
-    return (coeff * hpr.e / mstar**(5/2)) * (T**(n))
+    return (coeff * (1 / mstar)) * (T**(n))
 
 def sigmae0_from_muW(muW, T):
     return spb.sigmae0_from_muW(muW, T)
@@ -73,6 +73,12 @@ def conductivity_s(eta, T, coeff, mstar, l = 0):
     else:
         return sigmae0 * (l + 1) * fdk(l, eta)
     
+def conductivity_s_simp(eta, T, muW, l = 0):
+    sigmae0 = sigmae0_from_muW(muW, T)
+    if l == -1:  # s=0 requires analytic simplification
+        return sigmae0/ (1. + np.exp(-eta))
+    else:
+        return sigmae0 * (l + 1) * fdk(l, eta)    
     
 def seebeck_s(eta, l = 0):
     return (hpr.kB / hpr.e) * ((2 + l) / (1 + l) * (fdk(l + 1, eta)/ fdk(l, eta)) - eta)
@@ -92,7 +98,7 @@ def RH_s(eta, mstar, T = 300, l =0):
 ((1/2) + 2 * l) * fdk(2 * l - (1/2), eta) / ((1 + l)**2 * fdk(l, eta)**2)) * (1e6)
 
 def carr_conc_s(eta, mstar, T = 300, l = 0):
-    return 1 / (RH_s(eta, mstar, T = 300, l = 0) * hpr.e)
+    return 1 / (RH_s(eta, mstar, T, l) * hpr.e)
 
 
 def carr_conc_from_Seebeck(mstar, S, T = 300, l = 0):
@@ -101,7 +107,18 @@ def carr_conc_from_Seebeck(mstar, S, T = 300, l = 0):
         eta.append(minimize(
             lambda eta: np.abs(seebeck_s(eta, l) - s),
             method='Nelder-Mead', x0=[0.]).x[0])
-    return carr_conc_s(np.array(eta), mstar, T = 300, l = 0)
+    return carr_conc_s(np.array(eta), mstar, T, l)
+
+'''
+Jonker plot methods: returns conductivity in units of S/cm
+'''
+def conductivity_from_Seebeck(muW, S, T = 300, l = 0):
+    eta = []
+    for s in S:
+        eta.append(minimize(
+            lambda eta: np.abs(seebeck_s(eta, l) - s),
+            method='Nelder-Mead', x0=[0.]).x[0])
+    return conductivity_s_simp(np.array(eta), T, muW, l) * 1E-2
 
 '''
 Mu_0 forms
@@ -117,7 +134,7 @@ def kL_from_eta(kL_param, eta, mstar, kL_in: dict, T):
 
 def zT_from_eta(eta, mstar, coeff, sigmae0, kL_param, kL_in, T = 300, l = 0):
     S = seebeck_s(eta) # should just fit to the Seebeck coefficient
-    cond = conductivity_s(eta, T, coeff, mstar, l = 0)
+    cond = conductivity_s(eta, T, coeff, mstar, l)
     L = lorenz_s(eta)
     kappa_e = L * cond * T
     n = carr_conc_s(eta, mstar, T)
@@ -148,6 +165,7 @@ def get_data(data : dict, ind_prop : str, dep_prop : str, error = 0.15):
     It = []
     i = 0
     for k, v in data.items():
+        print(v.keys())
         Tt += v[ind_prop]
         At += v[dep_prop]
         Et += v[dep_prop]
@@ -180,6 +198,10 @@ def feval_carrconc_S(param, S, D):
     S = S * 1e-6
     return carr_conc_from_Seebeck(param[0], S, D['T'], D['l'])
 
+def feval_conductivity_S(param, S, D):
+    S = S * 1e-6
+    return conductivity_from_Seebeck(param[0], S, D['T'], D['l'])
+
 
 '''
 Sum together the likelihoods from different parameters
@@ -207,6 +229,16 @@ def pisarenko_likelihood(param, D):
     if np.isnan(probnH):
         return -np.inf
     return probnH
+
+def jonker_likelihood(param, D):
+    dA_c = D['At_c'] - feval_conductivity_S(param, D['St_c'], D)
+    prob_c = ss.norm.logpdf(dA_c, loc = 0, scale = D['Et_c']).sum()
+    if np.isnan(prob_c):
+        return -np.inf
+    return prob_c
+
+#def jonker_likelihood():
+#    return 
     
 if __name__ == '__main__':
     #Fit the eta values to each Seebeck coefficient 
@@ -215,12 +247,12 @@ if __name__ == '__main__':
         
         #Initalize Temperature and scattering exponent
         D['T'] = 300
-        D['l'] = 2
+        D['l'] = 0.5
         
         D['name_list'] = ['Goyal2019Bi',	'Liu2012Sb',	'Liu2014Bi',	'Yin2016Sb',	'Zhang2019Sb']
 
         # outname is the name for plots, etc
-        D['outname'] = '/Users/ramyagurunathan/Documents/PhDProjects/Argonne_TECCA/UQData/Mg2SiSn/outfiles/MgSi30Sn70'
+        D['outname'] = '/Users/ramyagurunathan/Documents/PhDProjects/Argonne_TECCA/UQData/Mg2SiSn/outfiles/MgSi30Sn70_l1'
 
         # set up a log file
         D['wrt_file'] = D['outname'] + '.txt'
@@ -255,15 +287,14 @@ if __name__ == '__main__':
         '''
         Define priors. Initalize property traces and trace plots
         '''
-        D['pname'] = ['mstar',]
+        D['pname'] = ['mstar']
         D['pname_plt'] = ['m^*']
         
         D['n_param'] = 1
         
-        D['locV'] =  [0]
-        D['scaleV'] = [3]
+        D['locV'] =  [1.69]
+        D['scaleV'] = [1.95 - 1.69]
         
-        a = pisarenko_likelihood([0.5], D)
         
         sampler_dict = {'nlinks' : 300, 'nwalkers' : 10, 'ntemps' : 5, 'ntune' : 100}
         

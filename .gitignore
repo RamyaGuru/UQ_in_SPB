@@ -3,6 +3,7 @@
 
 #Ignore the UnaryBayes directory
 UnaryBayes/
+outfiles/
 
 #Ignore unfinished scripts
 single_kane_band.py

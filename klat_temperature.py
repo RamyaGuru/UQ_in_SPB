@@ -21,7 +21,7 @@ import UnaryBayes.core_compute as cc
 import UnaryBayes.core_plot as cp
 import pandas as pd
 
- 
+np.seterr(divide='raise', invalid="raise")
 
 '''
 Methods for Property Conversions
@@ -42,8 +42,10 @@ def kL_T(param, avgM, avgV, N, vs, T):
     
     param = [coeff1, gruneisen, coeff2]
     '''
-    A = (((6 * pi**2)**(2/3) / (4 * pi**2)) * param[0] * (avgM / hpr.Na) * 1e-3  * vs**3 / (param[1]**2 * avgV**(2/3))) * (N**(-1/3))
-    B = param[2] * (3  * hpr.kB * vs / (2 * avgV**(2/3)))  * (pi / 6)**(1/3) * (1 - N**(-2/3))
+    A = (((6 * pi**2)**(2/3) / (4 * pi**2)) * param[0] * (avgM / hpr.Na) *\
+         1e-3  * vs**3 / (param[1]**2 * avgV**(2/3))) * (N**(-1/3))
+    B = param[2] * (3  * hpr.kB * vs / (2 * avgV**(2/3)))  * (pi / 6)**(1/3) *\
+    (1 - N**(-2/3))
     return A * (1 / T) + B
 
 
@@ -92,6 +94,9 @@ def normal_TA_tau_k(B1, freq, grun2, avgM, avgV, vs, T): #look into prefactor
     return B1 * freq * T
  
 def boundary_tau(C, vs, d):
+    '''
+    Include additional forms of boundary scattering? d_s + d_c?
+    '''
     return C * (d / vs)
 
 
@@ -143,7 +148,11 @@ def kL_umklapp_PD_b_vs_T_k(param, avgV, N, vs, d, stoich, og, subst, nk, c, disp
         kL = kL + spectral_C_k(avgV, vs, k, disp_fxn, T) * vs**2 * tau * dk
     return kL
 
-
+def kL_ac_opt(param, avgV, N, vs, stoich, og, subst, nk, c, disp_fxn, kL_ac_fxn, T):
+    kL_ac = kL_ac_fxn(param[:-1], avgV, N, vs, stoich, og, subst, nk, c, disp_fxn, T) #Integrate up to small BZ k_max for BvK dispersion
+    kL_opt = param[-1] * hpr.kB * vs / (avgV**(2/3)) * (pi / 6)**(1/3) 
+    full_kL = kL_ac * N**(-1/3) + kL_opt * (1 - N**(-2/3))
+    return full_kL
 '''
 Wrapper functions
 '''
@@ -163,10 +172,16 @@ def feval_klat_PD_U_k(param, T, D):
                             D['og'], D['subst'], D['nk'], D['c'], D['disp_fxn'], T)
     return kL
 
+def feval_klat_ac_opt(param, T, D):
+    kL = kL_ac_opt(param, D['avgV'], D['N'], D['vs'],  D['stoich'],\
+                            D['og'], D['subst'], D['nk'], D['c'], D['disp_fxn'],\
+                            D['kL_ac_fxn'], T)
+    return kL
 
 #Can this just be added to the core_compute module?
 def likelihood(param, D):
-    model_val = feval_klat_PD_U_k(param, D['Tt'], D)
+    feval_fxn = D['feval_klat_fxn']
+    model_val = feval_fxn(param, D['Tt'], D)
     dA = D['At'] - model_val
     #Obtain hyperparameters for the zT data: this might be for scaling?
     #Try alternative dsitirubtions fro the log likelihood
@@ -216,7 +231,7 @@ def read_data_pd(data_dir, dopant_conc : str):
                     data = df.to_dict('list')
                     Tt += list(df['T(K)'])
                     At += data['kL (W/m/K)']
-                    Et += data['20%eps kL (W/m/K)']
+                    Et += [d/4 for d in data['20%eps kL (W/m/K)']] #is this too huge?
                 else:
                     continue
     except:
@@ -257,15 +272,20 @@ if __name__ == '__main__':
         '''
         Define prior distributions. Do I need an 'epsilon' factor?
         '''
-        D['distV'] = 4 * ['uniform']
-        D['scaleV'] = [2, 2, 2, 600]
-        D['locV'] = [0, 0, 0, 0] #centers of distributions
+        D['distV'] = 5 * ['uniform']
+        D['scaleV'] = [2,2, 3, 600, 2]
+        D['locV'] = [0.2,0,0,0,0]
+#        D['scaleV'] = [2.35 - 0.57, 2.2-0.46, 3.51 - 1.25, 615 - 199, 2.7 - 0.47]
+#        D['locV'] = [0.57, 0.46, 1.25, 199, 0.47] #centers of distributions
+#        D['scaleV'] = [1.45, 1.45, 2.2, 377] 
+#        D['locV'] = [1.3, 1.3, 1.4, 279] 
+
         D['dim'] = len(D['distV'])
         
-        D['pname'] = ['A', 'B', 'gruneisen', 'epsilon']
-        D['pname_plt'] = ['A', 'B', r'\gamma', r'\epsilon'] 
+        D['pname'] = ['A', 'B', 'gruneisen', 'epsilon', 'C']
+        D['pname_plt'] = ['A', 'B', r'\gamma', r'\epsilon', 'C'] 
         
-        D['n_param'] = 4
+        D['n_param'] = 5
         
         '''
         Set material constants
@@ -289,7 +309,9 @@ if __name__ == '__main__':
         D['N'] = 3
         D['d'] = 350E-9
         D['disp_fxn'] = debye_model_freq
-        sampler_dict = {'nlinks' : 200, 'nwalkers' :100, 'ntemps' : 1, 'ntune' : 200}
+        D['kL_ac_fxn'] =  kL_umklapp_PD_vs_T_k
+        D['feval_klat_fxn'] = feval_klat_ac_opt
+        sampler_dict = {'nlinks' : 300, 'nwalkers' :10, 'ntemps' : 5, 'ntune' : 100}
         
         '''
         run MH algorithm to sample posterior

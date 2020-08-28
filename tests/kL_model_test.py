@@ -22,7 +22,7 @@ D = {}
 D['fname'] = sys.argv[0]
 
 # outname is the name for plots, etc
-D['outname'] = 'Ti_FeNbSb_klat'
+D['outname'] = 'Ti_FeNbSb_klat_bvk'
 
 # set up a log file
 D['wrt_file'] = D['outname'] + '.txt'
@@ -42,8 +42,12 @@ D['sampler'] = 'emcee'
 Define prior distributions. Do I need an 'epsilon' factor?
 '''
 D['distV'] = 4 * ['uniform']
-D['scaleV'] = [2, 2, 2, 600]
+D['scaleV'] = [2, 2, 3, 600]
 D['locV'] = [0, 0, 0, 0] #centers of distributions
+
+#D['scaleV'] = [1.65 - 0.95, 1.16 - 0.60, 1.68 - 1.07, 324 - 157]
+#D['locV'] = [0.95, 0.60, 1.07, 157]
+
 D['dim'] = len(D['distV'])
 
 D['pname'] = ['A', 'B', 'gruneisen', 'epsilon']
@@ -64,8 +68,10 @@ D['avgV'] = (53.167E-30) / 3
 D['avgM'] = 90.17
 D['N'] = 3
 D['d'] = 350E-9
-D['disp_fxn'] = kt.bvk_model_freq 
-sampler_dict = {'nlinks' : 200, 'nwalkers' :100, 'ntemps' : 1, 'ntune' : 200}
+D['disp_fxn'] = kt.debye_model_freq 
+D['kL_ac_fxn'] =  kt.kL_umklapp_PD_vs_T_k
+D['feval_klat_fxn'] = kt.feval_klat_PD_U_k
+sampler_dict = {'nlinks' : 300, 'nwalkers' :10, 'ntemps' : 1, 'ntune' : 100}
 
 '''
 run MH algorithm to sample posterior
@@ -139,5 +145,5 @@ cp.plot_cov(flattrace, D['pname_plt'], param_true=param_true,
 #    
 cp.plot_prediction(flattrace, D['name_list'],
                    D['Tt'], D['At'], D['It'], kt.feval_klat_PD_U_k, D,
-                   colorL=['k'], xlabel = 'T (K)', ylabel = r'$\kappa_L$ (W/m/K)')
+                   colorL=['k'], pltname = D['outname'], xlabel = 'T (K)', ylabel = r'$\kappa_L$ (W/m/K)')
     
