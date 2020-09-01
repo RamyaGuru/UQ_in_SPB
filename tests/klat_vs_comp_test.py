@@ -5,6 +5,9 @@ Created on Wed Aug 26 15:22:16 2020
 
 @author: ramyagurunathan
 lattice thermal conductivity versus temperature
+
+Update: Aug. 31 2020
+Try adding kap_pure as a parameter
 """
 
 import klat_temperature as kt

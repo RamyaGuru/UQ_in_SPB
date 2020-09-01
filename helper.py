@@ -26,4 +26,4 @@ User-defined exceptions
 class PropertyError(Exception):
     def __init__(self, message):
         self.message = message
-    
+

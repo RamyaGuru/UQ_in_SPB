@@ -247,7 +247,7 @@ if __name__ == '__main__':
         
         #Initalize Temperature and scattering exponent
         D['T'] = 300
-        D['l'] = 0.5
+        D['l'] = 1
         
         D['name_list'] = ['Goyal2019Bi',	'Liu2012Sb',	'Liu2014Bi',	'Yin2016Sb',	'Zhang2019Sb']
 
@@ -292,8 +292,15 @@ if __name__ == '__main__':
         
         D['n_param'] = 1
         
-        D['locV'] =  [1.69]
-        D['scaleV'] = [1.95 - 1.69]
+        prior_file = '/Users/ramyagurunathan/Documents/PhDProjects/Argonne_TECCA/UQData/Mg2SiSn/outfiles/MgSi30Sn70_l1_param.csv'
+        
+        lb, ub = cc.load_next_prior(prior_file)
+        if prior_file:
+            D['locV'] = lb
+            D['scaleV'] = ub - lb
+        else:
+            D['locV'] =  [0]
+            D['scaleV'] = [5]
         
         
         sampler_dict = {'nlinks' : 300, 'nwalkers' : 10, 'ntemps' : 5, 'ntune' : 100}
