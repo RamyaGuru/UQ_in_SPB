@@ -9,6 +9,8 @@ lattice thermal conductivity versus temperature
 Update: Aug. 31 2020
 Try adding kap_pure as a parameter
 """
+import sys
+sys.path.append('/Users/ramyagurunathan/Documents/PhDProjects/UQ_SPB')
 
 import klat_temperature as kt
 import os
@@ -60,11 +62,15 @@ def read_comp_data(data_dir, T = 300):
             
                     
                     
-def kL_alloy(param, atmV, vs, stoich, og, subst, kap_pure, c):
+def kL_alloy(param, atmV, vs, stoich, og, subst, c):
+    '''
+    param list: [eta, k1, k2]
+    '''
     gammaM = kt.gamma(stoich, og['mass'], subst['mass'], c)
     gammaV = kt.gamma(stoich, og['rad'], subst['rad'], c)
     gammatot = gammaM + param[0] * gammaV
     prefix = (6**(1/3)/2)*(pi**(5/3)/hpr.kB)*(atmV**(2/3)/vs)
+    kap_pure = (1 - c) * param[1] + c * param[2]
     u = (prefix*gammatot*kap_pure)**(1/2)
     kL = kap_pure*np.arctan(u)/u
     return kL
@@ -73,7 +79,7 @@ def kL_alloy(param, atmV, vs, stoich, og, subst, kap_pure, c):
 Wrapper functions
 '''              
 def feval_klat_alloy(param, c, D):
-    kL = kL_alloy(param, D['avgV'], D['vs'], D['stoich'], D['og'], D['subst'], D['kap_pure'], c)
+    kL = kL_alloy(param, D['avgV'], D['vs'], D['stoich'], D['og'], D['subst'], c)
     return kL  
 
 
@@ -104,19 +110,31 @@ if __name__ == '__main__':
     '''
     Define prior distributions. Do I need an 'epsilon' factor?
     '''
-    D['distV'] = 1 * ['uniform']
-    D['scaleV'] = [10]
-    D['locV'] = [25] #centers of distributions
+    D['distV'] = 3 * ['uniform']
+    
+    '''
+    Automated narrowing prior
+    '''
+    prior_file = '/Users/ramyagurunathan/Documents/PhDProjects/Argonne_TECCA/UQData/FeNbSb/Titanium/Fu2014EES/' + D['outname'] + '_param.csv'
+    
+    if prior_file:
+        print('here')
+        lb, ub = cc.load_next_prior(prior_file)
+        D['scaleV'] = [u - l for u,l in zip(ub, lb)]
+        D['locV'] = list(lb)
+    else:
+        D['scaleV'] = [500, 8, 8]
+        D['locV'] = [0, 13, 13] #centers of distributions
     
     #D['scaleV'] = [1.65 - 0.95, 1.16 - 0.60, 1.68 - 1.07, 324 - 157]
     #D['locV'] = [0.95, 0.60, 1.07, 157]
     
     D['dim'] = len(D['distV'])
     
-    D['pname'] = ['epsilon']
-    D['pname_plt'] = [r'\epsilon'] 
+    D['pname'] = ['epsilon', 'kappa1', 'kappa2']
+    D['pname_plt'] = [r'\epsilon', r'\kappa_1', r'\kappa_2'] 
     
-    D['n_param'] = 1
+    D['n_param'] = 3
     
     '''
     FeNbSb
@@ -133,7 +151,7 @@ if __name__ == '__main__':
 #    D['disp_fxn'] = kt.debye_model_freq 
 #    D['kL_ac_fxn'] =  kt.kL_umklapp_PD_vs_T_k
     D['feval_klat_fxn'] = feval_klat_alloy
-    sampler_dict = {'nlinks' : 300, 'nwalkers' :10, 'ntemps' : 1, 'ntune' : 100}
+    sampler_dict = {'nlinks' : 300, 'nwalkers' :10, 'ntemps' : 5, 'ntune' : 100}
     
     '''
     run MH algorithm to sample posterior
@@ -203,4 +221,4 @@ if __name__ == '__main__':
     #    
     cp.plot_prediction(flattrace, D['name_list'],
                        D['Tt'], D['At'], D['It'], feval_klat_alloy, D,
-                       colorL=['k', 'r'], pltname = D['outname'], xlim = [0.0001, 0.999], xlabel = 'x', ylabel = r'$\kappa_L$ (W/m/K)')
+                       colorL=['k', 'r'], pltname = D['outname'], xlabel = 'x', ylabel = r'$\kappa_L$ (W/m/K)')

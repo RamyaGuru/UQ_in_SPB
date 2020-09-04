@@ -7,6 +7,8 @@ Created on Wed Aug 26 17:31:28 2020
 
 Jonker scattering mechanism test
 """
+import sys
+sys.path.append('..')
 
 import spb_scattering_mech as sm
 import UnaryBayes.core_compute as cc
@@ -20,12 +22,12 @@ D = {}
 
 #Initalize Temperature and scattering exponent
 D['T'] = 300
-D['l'] = 0.5
+D['l'] = 0
 
 D['name_list'] = ['Goyal2019Bi',	'Liu2012Sb',	'Liu2014Bi',	'Yin2016Sb',	'Zhang2019Sb']
 
 # outname is the name for plots, etc
-D['outname'] = '/Users/ramyagurunathan/Documents/PhDProjects/Argonne_TECCA/UQData/Mg2SiSn/outfiles/MgSi30Sn70'
+D['outname'] = '/Users/ramyagurunathan/Documents/PhDProjects/Argonne_TECCA/UQData/Mg2SiSn/outfiles/MgSi30Sn70_jonker_l0'
 
 # set up a log file
 D['wrt_file'] = D['outname'] + '.txt'
@@ -65,9 +67,15 @@ D['pname'] = ['weighted_mobility']
 D['pname_plt'] = ['muW']
 
 D['n_param'] = 1
+prior_file = None
 
-D['locV'] =  [134e-4]
-D['scaleV'] = [148.5e-4 - 134e-4]
+if prior_file:
+    lb, ub = cc.load_next_prior(prior_file)
+    D['scaleV'] = [u - l for u,l in zip(ub, lb)]
+    D['locV'] = list(lb)
+else:
+    D['scaleV'] = [1000e-4]
+    D['locV'] = [0]
 
 
 sampler_dict = {'nlinks' : 300, 'nwalkers' : 10, 'ntemps' : 5, 'ntune' : 100}

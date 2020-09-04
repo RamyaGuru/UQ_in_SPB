@@ -296,8 +296,8 @@ if __name__ == '__main__':
         
         lb, ub = cc.load_next_prior(prior_file)
         if prior_file:
-            D['locV'] = lb
-            D['scaleV'] = ub - lb
+            D['locV'] = [lb]
+            D['scaleV'] = [ub - lb]
         else:
             D['locV'] =  [0]
             D['scaleV'] = [5]

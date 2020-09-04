@@ -231,7 +231,8 @@ def read_data_pd(data_dir, dopant_conc : str):
                     data = df.to_dict('list')
                     Tt += list(df['T(K)'])
                     At += data['kL (W/m/K)']
-                    Et += [d/4 for d in data['20%eps kL (W/m/K)']] #is this too huge?
+                    Et += data['20%eps kL (W/m/K)']
+#                    Et += [d/4 for d in data['20%eps kL (W/m/K)']] #is this too huge?
                 else:
                     continue
     except:
@@ -273,12 +274,14 @@ if __name__ == '__main__':
         Define prior distributions. Do I need an 'epsilon' factor?
         '''
         D['distV'] = 5 * ['uniform']
-        D['scaleV'] = [2,2, 3, 600, 2]
-        D['locV'] = [0.2,0,0,0,0]
-#        D['scaleV'] = [2.35 - 0.57, 2.2-0.46, 3.51 - 1.25, 615 - 199, 2.7 - 0.47]
-#        D['locV'] = [0.57, 0.46, 1.25, 199, 0.47] #centers of distributions
-#        D['scaleV'] = [1.45, 1.45, 2.2, 377] 
-#        D['locV'] = [1.3, 1.3, 1.4, 279] 
+        prior_file = '/Users/ramyagurunathan/Documents/PhDProjects/Argonne_TECCA/UQData/FeNbSb/Titanium/Fu2014EES/' + D['outname'] + '_param.csv'
+        if prior_file:
+            lb, ub = cc.load_next_prior(prior_file)
+            D['scaleV'] = [u - l for u,l in zip(ub, lb)]
+            D['locV'] = list(lb)
+        else:
+            D['scaleV'] = [3,3, 3, 600, 2]
+            D['locV'] = [0,0,0,0,0]
 
         D['dim'] = len(D['distV'])
         
